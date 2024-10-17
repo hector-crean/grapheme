@@ -1,0 +1,31 @@
+[workspace]
+members = ["cli", "api/*", "crates/*"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+authors = ["Hector Crean <hectorcrean@gmail.com>"]
+edition = "2021"
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]
+serde = { version = "1.0.199", features = ["derive"] }
+color-eyre = "0.6.3"
+thiserror = "1.0.59"
+strum = "0.26"
+strum_macros = "0.26"
+serde_json = { version = "1.0.116"}
+axum = { version = "0.7.5", features = ["macros"] }
+tower-http = { version = "0.6.1", features = ["cors"] }
+http = "1.1.0"
+tokio = { version = "1.40.0", features = ["full"] }
+reqwest = { version = "0.12.7", features = ["json"] }
+env_logger = "0.11.5"
+log = "0.4.22"
+uuid = { version = "1.6.0", features = ["v4", "serde"] }
+chrono = { version = "0.4.24", features = ["serde"] }
+dotenv = "0.15.0"
+
+[profile.release]
+opt-level = 3
+lto = true
