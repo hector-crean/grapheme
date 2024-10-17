@@ -2,7 +2,6 @@ pub mod post {
 
     use crate::Server;
 
-    
     use axum::{extract::State, Json};
     use log::info;
     use serde::{Deserialize, Serialize};
@@ -29,7 +28,7 @@ pub mod post {
         );
 
         let mut db = state.db.lock().unwrap();
-        let success = db.insert(&payload.id, payload.rich_text);
+        let success = db.upsert(&payload.id, payload.rich_text);
 
         Json(RichTextResponse { success })
     }
@@ -37,12 +36,12 @@ pub mod post {
 
 pub mod get {
 
-    
-
     use crate::Server;
 
-    
-    use axum::{extract::{Path, Query, State}, Json};
+    use axum::{
+        extract::{Path, Query, State},
+        Json,
+    };
     use log::{info, warn};
     use serde::{Deserialize, Serialize};
     use uuid::Uuid;

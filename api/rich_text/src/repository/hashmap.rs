@@ -21,22 +21,9 @@ impl HashMapRepository {
 
 impl RichTextRepositoryLike for HashMapRepository {
     type RichText = String;
-    fn insert(&mut self, id: &Uuid, rich_text: String) -> bool {
-        if self.0.contains_key(id) {
-            false
-        } else {
-            self.0.insert(*id, rich_text);
-            true
-        }
-    }
 
-    fn update(&mut self, id: &Uuid, rich_text: String) -> bool {
-        if let Some(prev_rich_text) = self.0.get_mut(id) {
-            *prev_rich_text = rich_text;
-            true
-        } else {
-            false
-        }
+    fn upsert(&mut self, id: &Uuid, rich_text: String) -> bool {
+        self.0.insert(*id, rich_text).is_some()
     }
 
     fn delete(&mut self, id: &Uuid) -> bool {
