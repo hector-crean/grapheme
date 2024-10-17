@@ -1,14 +1,19 @@
-import { LitElement, html, css } from 'lit';
+import { ListItemNode, ListNode } from '@lexical/list';
+import { css, html, LitElement } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { unsafeHTML } from 'lit/directives/unsafe-html.js';
+
+import { $generateHtmlFromNodes, $generateNodesFromDOM } from '@lexical/html';
+import { LinkNode } from '@lexical/link';
+import { HeadingNode, QuoteNode } from '@lexical/rich-text';
+import { $createParagraphNode, $createTextNode, $getRoot, createEditor, LexicalEditor, LineBreakNode, ParagraphNode, TextNode } from 'lexical';
+import { createRef, ref, Ref } from 'lit/directives/ref.js';
 
 @customElement('rich-text')
 export class RichText extends LitElement {
   @property({ type: String })
   id!: string;
 
-  @state()
-  private richText: string = '';
+
 
   @state()
   private error: string | null = null;
@@ -19,8 +24,60 @@ export class RichText extends LitElement {
   @state()
   private editing: boolean = false;
 
-  @state()
-  private editableContent: string = '';
+
+
+  @state() private _editor: LexicalEditor;
+  @state() private canUndo = false;
+  @state() private canRedo = false;
+
+  contentEditableRef: Ref<HTMLDivElement> = createRef();
+
+  constructor() {
+    super();
+
+    const config = {
+      namespace: 'MyEditor',
+      nodes: [
+        HeadingNode,
+        QuoteNode,
+        ListItemNode,
+        ListNode,
+        LinkNode,
+        ParagraphNode,
+        TextNode,
+        LineBreakNode,
+
+
+
+      ],
+      onError: (error: Error) => console.error(error),
+    };
+
+    this._editor = createEditor(config);
+  }
+
+  firstUpdated() {
+    this._editor.setRootElement(this.contentEditableRef.value!);
+
+    this._editor.update(() => {
+      const root = $getRoot();
+      if (root.getFirstChild() === null) {
+        const paragraph = $createParagraphNode();
+        paragraph.append($createTextNode(''));
+        root.append(paragraph);
+      }
+    });
+
+    this._editor.registerUpdateListener(({ editorState }) => {
+      editorState.read(() => {
+        // this.canUndo = this._editor.canUndo();
+        // this.canRedo = this._editor.canRedo();
+      });
+    });
+
+    this.fetchRichText();
+  }
+
 
   static styles = css`
     :host {
@@ -61,11 +118,14 @@ export class RichText extends LitElement {
     }
   `;
 
-  updated(changedProperties: Map<string, any>) {
-    if (changedProperties.has('id')) {
-      this.fetchRichText();
-    }
-  }
+  // async updated(changedProperties: Map<string, any>) {
+  //   if (changedProperties.has('id')) {
+  //     const nodes = await this.fetchRichText();
+  //     if(nodes){
+  //       this.richTextNodes = nodes;
+  //     }
+  //   }
+  // }
 
   async fetchRichText() {
     this.loading = true;
@@ -80,8 +140,18 @@ export class RichText extends LitElement {
         );
       }
       const data = await response.json();
-      this.richText = data.rich_text;
-      this.editableContent = this.richText; // Initialize editableContent
+      const richText = data.rich_text;
+      const parser = new DOMParser();
+      const dom = parser.parseFromString(richText, 'text/html');
+      const nodes = $generateNodesFromDOM(this._editor, dom);
+      if (nodes) {
+        this._editor.update(() => {
+          const root = $getRoot();
+          root.clear();
+          root.append(...nodes);
+        });
+      }
+      return nodes;
     } catch (e) {
       console.error('Failed to fetch rich text:', e);
       this.error = e instanceof Error ? e.message : 'An unknown error occurred.';
@@ -90,8 +160,10 @@ export class RichText extends LitElement {
     }
   }
 
-  async postRichText(updatedText: string) {
+  async postRichText() {
     try {
+      const html = $generateHtmlFromNodes(this._editor);
+
       const response = await fetch(`http://127.0.0.1:3001/rich-text`, {
         method: 'POST',
         headers: {
@@ -99,7 +171,7 @@ export class RichText extends LitElement {
         },
         body: JSON.stringify({
           id: this.id,
-          rich_text: updatedText
+          rich_text: html
         }),
       });
 
@@ -107,7 +179,6 @@ export class RichText extends LitElement {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      this.richText = updatedText;
       this.editing = false;
     } catch (e) {
       console.error('Failed to update rich text:', e);
@@ -115,15 +186,12 @@ export class RichText extends LitElement {
     }
   }
 
-  private handleInput(e: Event) {
-    const target = e.target as HTMLDivElement;
-    this.editableContent = target.innerHTML;
-  }
+
 
   private async handleSave(e: Event) {
     e.preventDefault();
     e.stopPropagation();
-    await this.postRichText(this.editableContent);
+    await this.postRichText();
     this.editing = false;
     this.requestUpdate();
   }
@@ -143,13 +211,12 @@ export class RichText extends LitElement {
       <div
         class="rich-text-content"
         contenteditable="${this.editing}"
-        @input="${this.handleInput}"
-      >
-        ${unsafeHTML(this.editableContent)}
-      </div>
+        ${ref(this.contentEditableRef)}  
+      ></div>
       <button class="edit-button" @click="${this.editing ? this.handleSave : this.handleEdit}">
         ${this.editing ? 'Save' : 'Edit'}
       </button>
+      
     `;
   }
 }
