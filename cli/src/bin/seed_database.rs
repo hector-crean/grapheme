@@ -4,19 +4,19 @@ use html_ops::{
     walk::{process_html_files, process_html_files_async},
 };
 use log::info;
-use std::{collections::HashMap, fs, io, path::Path};
 use reqwest;
+use rich_text_api::routes::rich_text::post::{RichTextRequest, RichTextResponse as PostResponse};
+use std::{collections::HashMap, fs, io, path::Path};
 use uuid::Uuid;
-use rich_text_api::routes::rich_text::{
-    post::{RichTextRequest, RichTextResponse as PostResponse},
-};
 
 const SYNC_WITH_DB: bool = true;
 
-async fn sync_with_database(client: &reqwest::Client, base_url: &str, text_map: &HashMap<Uuid, String>) -> color_eyre::Result<()> {
+async fn sync_with_database(
+    client: &reqwest::Client,
+    base_url: &str,
+    text_map: &HashMap<Uuid, String>,
+) -> color_eyre::Result<()> {
     for (id, html) in text_map {
-        info!("Text Map:\n{:#?}", text_map);
-
         let post_request = RichTextRequest {
             id: *id,
             rich_text: html.to_string(),
@@ -41,12 +41,12 @@ async fn main() -> color_eyre::Result<()> {
     dotenv::dotenv().ok();
     env_logger::init();
 
-    let src_dir = Path::new("assets/input");
+    let src_dir =
+        Path::new(r#"C:\Users\Hector.C\desktop\projects\OTS110_WebApp\src\content\bipolar"#);
     let dst_dir = Path::new("assets/output");
 
     let client = reqwest::Client::new();
     let base_url = "http://127.0.0.1:3001";
-
 
     let mut repository: HashMap<Uuid, String> = HashMap::new();
 
@@ -64,11 +64,9 @@ async fn main() -> color_eyre::Result<()> {
         for (id, html) in text_map {
             repository.insert(*id, html.clone());
         }
-      
 
         fs::write(&output_path, html)?;
         info!("Successfully processed file: {:?}", path);
-        
 
         Ok(())
     })?;
@@ -76,9 +74,6 @@ async fn main() -> color_eyre::Result<()> {
     if SYNC_WITH_DB {
         sync_with_database(&client, base_url, &repository).await?;
     }
-
-
-
 
     Ok(())
 }
