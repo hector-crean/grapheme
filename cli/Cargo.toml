@@ -1,0 +1,20 @@
+[package]
+name = "cli"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+clap =  { version = "4.5.4", features = ["derive"]}
+thiserror = { workspace = true }
+color-eyre = { workspace = true }
+rich_text_api = { path = "../api/rich_text" }
+tokio = { workspace = true }
+env_logger = { workspace = true }
+dotenv = { workspace = true }
+log = { workspace = true }
+html_ops = { path = "../crates/html_ops" }
+uuid = { workspace = true }
+reqwest = { workspace = true }
+serde_json = { workspace = true }
