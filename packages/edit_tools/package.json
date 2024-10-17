@@ -1,0 +1,34 @@
+{
+  "name": "edit_tools",
+  "private": false,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build-lib": "tsc",
+    "build": "vite build && tsc --emitDeclarationOnly",
+    "preview": "vite preview",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.5",
+    "ts-lit-plugin": "^2.0.2",
+    "typescript": "^5.5.3",
+    "vite": "^5.4.8"
+  },
+  "dependencies": {
+    "@lexical/history": "^0.18.0",
+    "@lexical/link": "^0.18.0",
+    "@lexical/rich-text": "^0.18.0",
+    "@lexical/utils": "^0.18.0",
+    "lexical": "^0.18.0",
+    "lit": "^3.2.1",
+    "path": "^0.12.7"
+  }
+}
