@@ -1,7 +1,8 @@
+pub mod asset_mover_visitor;
 pub mod document_id_visitor;
+pub mod orphan_visitor;
 pub mod rich_text_wrapper_visitor;
 pub mod text_collector_visitor;
-pub mod orphan_visitor;
 use crate::rc_dom::{Handle, NodeData};
 use html5ever::{Attribute, QualName};
 use std::cell::RefCell;
