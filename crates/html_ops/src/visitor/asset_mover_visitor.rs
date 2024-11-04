@@ -1,7 +1,7 @@
 use super::NodeVisitor;
 use crate::rc_dom::{Handle, NodeData};
 use html5ever::{Attribute, QualName};
-use log::{debug, info};
+use log::{debug, error, info};
 use path_clean::PathClean;
 use sanitize_filename;
 use std::cell::RefCell;
@@ -42,7 +42,7 @@ impl AssetMoverVisitor {
             current_file_path: current_file_path.as_ref().to_path_buf(),
             asset_extensions,
             moved_assets: HashSet::new(),
-            assets_prefix: "/assets".to_string(),
+            assets_prefix: "assets".to_string(),
         }
     }
 
@@ -56,6 +56,7 @@ impl AssetMoverVisitor {
 
         // Skip absolute URLs and data URLs
         if relative_path_str.starts_with("http") || relative_path_str.starts_with("data:") {
+            debug!("Skipping external URL: {}", relative_path_str);
             return None;
         }
 
@@ -65,18 +66,27 @@ impl AssetMoverVisitor {
                 .asset_extensions
                 .contains(&ext.to_string_lossy().to_lowercase())
             {
+                debug!("Skipping non-asset file extension: {}", relative_path_str);
                 return None;
             }
         } else {
+            debug!("Skipping path without extension: {}", relative_path_str);
             return None;
         }
 
-        // Convert relative path to absolute path and normalize it
+        // Log the path resolution steps
+        debug!("Base dir: {:?}", self.base_dir);
+        debug!("Current file path: {:?}", self.current_file_path);
         let current_dir = self.current_file_path.parent().unwrap_or(Path::new(""));
+        debug!("Current dir: {:?}", current_dir);
+
+        // Convert relative path to absolute path and normalize it
         let absolute_path = self.base_dir.join(current_dir).join(&relative_path).clean();
+        debug!("Resolved absolute path: {:?}", absolute_path);
 
         if !absolute_path.exists() {
-            debug!("Asset not found: {:?}", absolute_path);
+            error!("Asset not found: {:?}\n  - Relative path: {:?}\n  - Base dir: {:?}\n  - Current dir: {:?}", 
+                absolute_path, relative_path_str, self.base_dir, current_dir);
             return None;
         }
 
@@ -102,18 +112,22 @@ impl AssetMoverVisitor {
         // Move the asset if we haven't already
         if !self.moved_assets.contains(&absolute_path) {
             if let Err(e) = fs::create_dir_all(&self.assets_dir) {
-                debug!("Failed to create assets directory: {}", e);
+                error!("Failed to create assets directory: {}", e);
                 return None;
             }
             if let Err(e) = fs::copy(&absolute_path, &new_path) {
-                debug!("Failed to copy asset: {}", e);
+                error!("Failed to copy asset: {}", e);
                 return None;
             }
             self.moved_assets.insert(absolute_path);
         }
 
         // Return the new path relative to the site root
-        Some(format!("{}/{}", self.assets_prefix, new_filename))
+        Some(format!(
+            "{}/{}",
+            self.assets_prefix.trim_start_matches('/'),
+            new_filename
+        ))
     }
 }
 
@@ -131,6 +145,15 @@ impl NodeVisitor for AssetMoverVisitor {
         // Process attributes that might contain asset paths
         for attr in attrs_ref.iter_mut() {
             match (name.local.as_ref(), attr.name.local.as_ref()) {
+                 ("source", "src") => {
+                    info!("Processing <source> element with src: {}", attr.value);
+                    if let Some(new_path) = self.process_asset_path(Path::new(&*attr.value)) {
+                        info!("Updated <source> src from {} to {}", attr.value, new_path);
+                        attr.value = new_path.into();
+                    } else {
+                        info!("Skipped processing <source> src: {}", attr.value);
+                    }
+                }
                 // Images and Video posters
                 ("img", "src") |
                 ("video", "poster") |
@@ -139,15 +162,6 @@ impl NodeVisitor for AssetMoverVisitor {
                 // Stylesheets
                 ("link", "href") |
                 // Video sources and general media
-                // ("source", "src") => {
-                //     info!("Processing <source> element with src: {}", attr.value);
-                //     if let Some(new_path) = self.process_asset_path(&attr.value) {
-                //         info!("Updated <source> src from {} to {}", attr.value, new_path);
-                //         attr.value = new_path.into();
-                //     } else {
-                //         info!("Skipped processing <source> src: {}", attr.value);
-                //     }
-                // }
                 (_, "src") |
                 (_, "href") => {
                     if let Some(new_path) = self.process_asset_path(attr.value.as_ref()) {

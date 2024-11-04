@@ -2,26 +2,35 @@ use maud::{html, Markup};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+#[derive(Hash)]
+pub enum ReferenceUuid {
+    Pubmed(String),
+    Arxiv(String),
+    Doi(String),
+    Url(String),
+    Uuid(uuid::Uuid),
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Reference {
-    authors: Vec<String>,
-    year: Option<u16>,
-    title: String,
-    container: Option<String>, // For journal, book, etc.
-    other_contributors: Option<Vec<String>>,
-    version: Option<String>,
-    number: Option<String>,
-    publisher: Option<String>,
-    publication_date: Option<String>,
-    location: Option<String>,
-    pages: Option<String>,
-    volume: Option<u32>,
-    issue: Option<u32>,
-    doi: Option<String>,
-    url: Option<String>,
-    accessed_date: Option<String>,
+    pub authors: Vec<String>,
+    pub year: Option<u16>,
+    pub title: String,
+    pub container: Option<String>, // For journal, book, etc.
+    pub other_contributors: Option<Vec<String>>,
+    pub version: Option<String>,
+    pub number: Option<String>,
+    pub publisher: Option<String>,
+    pub publication_date: Option<String>,
+    pub location: Option<String>,
+    pub pages: Option<String>,
+    pub volume: Option<u32>,
+    pub issue: Option<u32>,
+    pub doi: Option<String>,
+    pub url: Option<String>,
+    pub accessed_date: Option<String>,
     #[serde(flatten)]
-    additional_info: HashMap<String, String>, // For any extra fields
+    pub additional_info: HashMap<String, String>, // For any extra fields
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

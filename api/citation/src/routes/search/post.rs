@@ -1,18 +1,12 @@
+use crate::reference::reference_style::Reference;
 use axum::Json;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Deserialize)]
 pub struct SearchQuery {
     q: String,
-}
-
-#[derive(Serialize)]
-pub struct SearchResult {
-    id: String,
-    title: String,
-    authors: Vec<String>,
-    year: i32,
 }
 
 const PUBMED_BASE_URL: &str = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils";
@@ -82,7 +76,12 @@ struct ArticleId {
     value: String,
 }
 
-pub async fn search_pubmed(query: &str) -> Result<Vec<SearchResult>, Box<dyn std::error::Error>> {
+#[derive(Debug, Deserialize, Serialize)]
+pub struct SearchResponse {
+    pub references: Vec<Reference>,
+}
+
+pub async fn search_pubmed(query: &str) -> Result<SearchResponse, Box<dyn std::error::Error>> {
     let client = Client::new();
 
     // First, search for IDs
@@ -104,30 +103,49 @@ pub async fn search_pubmed(query: &str) -> Result<Vec<SearchResult>, Box<dyn std
     println!("{:?}", rep);
     let summary_response: PubMedSummaryResult = rep.json().await?;
 
-    let results = summary_response
+    let results: Vec<Reference> = summary_response
         .result
         .articles
         .values()
-        .map(|article| SearchResult {
-            id: article.uid.clone(),
-            title: article.title.clone(),
+        .map(|article| Reference {
             authors: article.authors.iter().map(|a| a.name.clone()).collect(),
             year: article
                 .pubdate
                 .split_whitespace()
                 .next()
-                .and_then(|year| year.parse().ok())
-                .unwrap_or(0),
+                .and_then(|year| year.parse().ok()),
+            title: article.title.clone(),
+            container: Some(article.source.clone()),
+            volume: article.volume.parse().ok(),
+            issue: article.issue.parse().ok(),
+            pages: Some(article.pages.clone()),
+            publication_date: Some(article.pubdate.clone()),
+            doi: article
+                .article_ids
+                .iter()
+                .find(|id| id.idtype == "doi")
+                .map(|id| id.value.clone()),
+            // Initialize optional fields as None
+            other_contributors: None,
+            version: None,
+            number: None,
+            publisher: None,
+            location: None,
+            url: None,
+            accessed_date: None,
+            additional_info: HashMap::new(),
         })
         .collect();
 
-    Ok(results)
+    Ok(SearchResponse {
+        references: results,
+    })
 }
 
 #[axum::debug_handler]
 pub async fn handle_search(
     Json(params): Json<SearchQuery>,
-) -> Result<Json<Vec<SearchResult>>, (axum::http::StatusCode, String)> {
+) -> Result<Json<SearchResponse>, (axum::http::StatusCode, String)> {
     match search_pubmed(&params.q).await {
         Ok(results) => Ok(Json(results)),
         Err(e) => {
